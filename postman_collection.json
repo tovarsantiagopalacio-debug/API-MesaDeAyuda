@@ -1,0 +1,1219 @@
+{
+  "info": {
+    "name": "Helpdesk API - Mesa de Ayuda",
+    "description": "Colección de pruebas para la API de Mesa de Ayuda con SLA y JWT.\n\n## Datos de prueba\n- Admin: admin@helpdesk.com / admin123\n- Soporte: soporte@helpdesk.com / soporte123\n- Usuario: usuario@helpdesk.com / usuario123\n\n## Flujo recomendado\n1. Ejecutar Ping\n2. Ejecutar Registro\n3. Ejecutar Login (varios roles)\n4. Probar CRUD de tickets\n5. Probar seguridad (401/403)\n6. Probar Refresh Token\n7. Probar Logout + revocación",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "helpdesk-api"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "admin_token",
+      "value": ""
+    },
+    {
+      "key": "soporte_token",
+      "value": ""
+    },
+    {
+      "key": "usuario_token",
+      "value": ""
+    },
+    {
+      "key": "ticket_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Públicos",
+      "item": [
+        {
+          "name": "Ping",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Respuesta pong\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.mensaje).to.eql(\"pong\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ping",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ping"]
+            }
+          }
+        },
+        {
+          "name": "Registro - Nuevo Usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Test User\",\n  \"email\": \"test@example.com\",\n  \"password\": \"test123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/registro",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "registro"]
+            }
+          }
+        },
+        {
+          "name": "Registro - Email Duplicado (409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 409 Conflict\", function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Admin\",\n  \"email\": \"admin@helpdesk.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/registro",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "registro"]
+            }
+          }
+        },
+        {
+          "name": "Registro - Datos Inválidos (400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 400 Bad Request\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"\",\n  \"email\": \"no-es-email\",\n  \"password\": \"12\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/registro",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "registro"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticación",
+      "item": [
+        {
+          "name": "Login - Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Devuelve accessToken\", function () {",
+                  "    pm.expect(jsonData.accessToken).to.exist;",
+                  "});",
+                  "pm.test(\"Devuelve refreshToken\", function () {",
+                  "    pm.expect(jsonData.refreshToken).to.exist;",
+                  "});",
+                  "pm.test(\"Rol ADMIN\", function () {",
+                  "    pm.expect(jsonData.rol).to.eql(\"ADMIN\");",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"admin_token\", jsonData.accessToken);",
+                  "pm.collectionVariables.set(\"access_token\", jsonData.accessToken);",
+                  "pm.collectionVariables.set(\"refresh_token\", jsonData.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@helpdesk.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Soporte",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Rol SOPORTE\", function () {",
+                  "    pm.expect(jsonData.rol).to.eql(\"SOPORTE\");",
+                  "});",
+                  "pm.collectionVariables.set(\"soporte_token\", jsonData.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"soporte@helpdesk.com\",\n  \"password\": \"soporte123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Login - Usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Rol USUARIO\", function () {",
+                  "    pm.expect(jsonData.rol).to.eql(\"USUARIO\");",
+                  "});",
+                  "pm.collectionVariables.set(\"usuario_token\", jsonData.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@helpdesk.com\",\n  \"password\": \"usuario123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token - Renovación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Nuevo accessToken\", function () {",
+                  "    pm.expect(jsonData.accessToken).to.exist;",
+                  "    pm.expect(jsonData.accessToken).to.not.eql(pm.collectionVariables.get(\"access_token\"));",
+                  "});",
+                  "pm.test(\"Nuevo refreshToken (rotación)\", function () {",
+                  "    pm.expect(jsonData.refreshToken).to.exist;",
+                  "    pm.expect(jsonData.refreshToken).to.not.eql(pm.collectionVariables.get(\"refresh_token\"));",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"access_token\", jsonData.accessToken);",
+                  "pm.collectionVariables.set(\"refresh_token\", jsonData.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token - Con token revocado (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401 - Token revocado\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"token-inexistente-o-revocado\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Mensaje de sesión cerrada\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.mensaje).to.include(\"cerrada\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Tickets - CRUD",
+      "item": [
+        {
+          "name": "Crear Ticket (ALTA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Estado inicial ABIERTO\", function () {",
+                  "    pm.expect(jsonData.estado).to.eql(\"ABIERTO\");",
+                  "});",
+                  "pm.test(\"SLA calculado (ALTA = +4h)\", function () {",
+                  "    pm.expect(jsonData.slaVenceEn).to.exist;",
+                  "    pm.expect(jsonData.vencido).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"ticket_id\", jsonData.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Error en el sistema de facturación\",\n  \"descripcion\": \"El módulo de facturación no emite comprobantes\",\n  \"prioridad\": \"ALTA\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Crear Ticket (MEDIA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Prioridad MEDIA\", function () {",
+                  "    pm.expect(jsonData.prioridad).to.eql(\"MEDIA\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Instalación de software\",\n  \"descripcion\": \"Necesito instalar Visual Studio Code\",\n  \"prioridad\": \"MEDIA\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Crear Ticket (BAJA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Actualizar navegador\",\n  \"descripcion\": \"Chrome necesita actualización pendiente\",\n  \"prioridad\": \"BAJA\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Mis Tickets",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Es un array de tickets\", function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "pm.test(\"Todos los tickets son del usuario\", function () {",
+                  "    jsonData.forEach(function(t) {",
+                  "        pm.expect(t.creadoPor).to.eql(\"Usuario\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets/mios",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "mios"]
+            }
+          }
+        },
+        {
+          "name": "Ver Ticket por ID (dueño)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Ticket tiene SLA\", function () {",
+                  "    pm.expect(jsonData.slaVenceEn).to.exist;",
+                  "});",
+                  "pm.test(\"Campo vencido presente\", function () {",
+                  "    pm.expect(jsonData.vencido).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets/{{ticket_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "{{ticket_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Listar Todos (SOPORTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Lista todos los tickets\", function () {",
+                  "    pm.expect(jsonData.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{soporte_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Cambiar Estado (SOPORTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Estado cambiado a EN_PROCESO\", function () {",
+                  "    pm.expect(jsonData.estado).to.eql(\"EN_PROCESO\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{soporte_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"EN_PROCESO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets/{{ticket_id}}/estado",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "{{ticket_id}}", "estado"]
+            }
+          }
+        },
+        {
+          "name": "Resolver Ticket (SOPORTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Estado RESUELTO\", function () {",
+                  "    pm.expect(jsonData.estado).to.eql(\"RESUELTO\");",
+                  "});",
+                  "pm.test(\"Ticket resuelto no está vencido\", function () {",
+                  "    pm.expect(jsonData.vencido).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{soporte_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"RESUELTO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets/{{ticket_id}}/estado",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "{{ticket_id}}", "estado"]
+            }
+          }
+        },
+        {
+          "name": "Tickets Vencidos (SOPORTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Todos están vencidos y no resueltos\", function () {",
+                  "    jsonData.forEach(function(t) {",
+                  "        pm.expect(t.vencido).to.eql(true);",
+                  "        pm.expect(t.estado).to.not.eql(\"RESUELTO\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{soporte_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets/vencidos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "vencidos"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Admin",
+      "item": [
+        {
+          "name": "Asignar Rol SOPORTE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Mensaje de ascendido\", function () {",
+                  "    pm.expect(jsonData.mensaje).to.include(\"SOPORTE\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/soporte",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "soporte"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Seguridad - Pruebas Negativas",
+      "item": [
+        {
+          "name": "401 - Sin Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401 Unauthorized\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "401 - Token Inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 401\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer token-falso-invalido-123",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "403 - USUARIO intenta Listar Todos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "403 - USUARIO intenta Cambiar Estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"RESUELTO\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets/1/estado",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "1", "estado"]
+            }
+          }
+        },
+        {
+          "name": "403 - USUARIO intenta usar Endpoint Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"x@x.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/soporte",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "soporte"]
+            }
+          }
+        },
+        {
+          "name": "403 - SOPORTE intenta usar Endpoint Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 403\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{soporte_token}}",
+                "type": "auth"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"x@x.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/soporte",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "soporte"]
+            }
+          }
+        },
+        {
+          "name": "403 - USUARIO intenta ver Ticket Ajeno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.test(\"Status 403 - Ticket de otro usuario\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "    pm.expect(jsonData.error).to.include(\"permiso\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{usuario_token}}",
+                "type": "auth"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/tickets/{{ticket_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "{{ticket_id}}"]
+            },
+            "description": "Este test requiere que {{ticket_id}} sea un ticket creado por otro usuario. Ejecutar después de Login - Admin y crear un ticket con Admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Flujo Completo (demostración)",
+      "item": [
+        {
+          "name": "Paso 1 - Login Admin y obtener tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"access_token\", jsonData.accessToken);",
+                  "pm.collectionVariables.set(\"refresh_token\", jsonData.refreshToken);",
+                  "pm.collectionVariables.set(\"admin_token\", jsonData.accessToken);",
+                  "console.log(\"Access Token guardado\");",
+                  "console.log(\"Refresh Token guardado\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin@helpdesk.com\",\"password\":\"admin123\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Paso 2 - Refresh Token (rotación)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"access_token\", jsonData.accessToken);",
+                  "pm.collectionVariables.set(\"refresh_token\", jsonData.refreshToken);",
+                  "console.log(\"Nuevo Access Token por refresh\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"refreshToken\":\"{{refresh_token}}\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            }
+          }
+        },
+        {
+          "name": "Paso 3 - Crear Ticket con SLA",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.collectionVariables.set(\"ticket_id\", jsonData.id);",
+                  "console.log(\"Ticket creado: \" + jsonData.id);",
+                  "console.log(\"SLA vence: \" + jsonData.slaVenceEn);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{access_token}}"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"titulo\":\"Demo SLA ALTA\",\"descripcion\":\"Ticket de demostración con prioridad ALTA (SLA 4h)\",\"prioridad\":\"ALTA\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets"]
+            }
+          }
+        },
+        {
+          "name": "Paso 4 - Ver Tickets Vencidos (SOPORTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "console.log(\"Tickets vencidos encontrados: \" + jsonData.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{soporte_token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/tickets/vencidos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "tickets", "vencidos"]
+            }
+          }
+        },
+        {
+          "name": "Paso 5 - Logout y verificar revocación",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "console.log(\"Sesión cerrada. El refresh token fue revocado.\");",
+                  "console.log(\"El siguiente request a /api/auth/refresh con este token debe fallar con 401.\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

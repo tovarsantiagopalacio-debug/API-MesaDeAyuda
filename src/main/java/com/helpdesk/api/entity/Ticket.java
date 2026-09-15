@@ -46,15 +46,19 @@ public class Ticket {
 
     @PrePersist
     protected void onCreate() {
-        this.creadoEn = LocalDateTime.now();
+        if (this.creadoEn == null) {
+            this.creadoEn = LocalDateTime.now();
+        }
         if (this.estado == null) {
             this.estado = EstadoTicket.ABIERTO;
         }
-        this.slaVenceEn = switch (this.prioridad) {
-            case ALTA -> this.creadoEn.plusHours(4);
-            case MEDIA -> this.creadoEn.plusHours(24);
-            case BAJA -> this.creadoEn.plusHours(72);
-        };
+        if (this.slaVenceEn == null) {
+            this.slaVenceEn = switch (this.prioridad) {
+                case ALTA -> this.creadoEn.plusHours(4);
+                case MEDIA -> this.creadoEn.plusHours(24);
+                case BAJA -> this.creadoEn.plusHours(72);
+            };
+        }
     }
 
     public boolean isVencido() {
